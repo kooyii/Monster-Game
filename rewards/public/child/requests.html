@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的申请 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6' } } }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+  <nav class="bg-gradient-to-r from-fun-purple to-fun-pink text-white shadow-lg">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span id="nav-avatar" class="text-2xl">🧒</span>
+        <span id="nav-name" class="font-bold"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 flex items-center gap-1">
+          <span class="text-star-yellow">⭐</span>
+          <span id="nav-points" class="font-bold text-sm">0</span>
+        </div>
+        <button onclick="logout()" class="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded-lg">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">我的申请</h1>
+
+    <!-- Pending -->
+    <div class="mb-6">
+      <h2 class="text-base font-semibold text-yellow-600 mb-3 flex items-center gap-2">
+        <span class="w-3 h-3 bg-yellow-400 rounded-full"></span>等待审核
+      </h2>
+      <div id="pending-list" class="space-y-3">
+        <div class="text-gray-400 text-sm text-center py-2">加载中...</div>
+      </div>
+    </div>
+
+    <!-- Approved -->
+    <div class="mb-6">
+      <h2 class="text-base font-semibold text-reward-green mb-3 flex items-center gap-2">
+        <span class="w-3 h-3 bg-green-400 rounded-full"></span>已批准
+      </h2>
+      <div id="approved-list" class="space-y-3">
+        <div class="text-gray-400 text-sm text-center py-2">加载中...</div>
+      </div>
+    </div>
+
+    <!-- Rejected -->
+    <div class="mb-6">
+      <h2 class="text-base font-semibold text-red-500 mb-3 flex items-center gap-2">
+        <span class="w-3 h-3 bg-red-400 rounded-full"></span>未通过
+      </h2>
+      <div id="rejected-list" class="space-y-3">
+        <div class="text-gray-400 text-sm text-center py-2">加载中...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden">
+    <div class="flex">
+      <a href="/child/dashboard.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">🏠</span><span class="text-xs">首页</span>
+      </a>
+      <a href="/child/history.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">📋</span><span class="text-xs">记录</span>
+      </a>
+      <a href="/child/catalog.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">🎁</span><span class="text-xs">奖励</span>
+      </a>
+      <a href="/child/requests.html" class="flex-1 flex flex-col items-center py-2 text-fun-purple">
+        <span class="text-xl">📬</span><span class="text-xs font-medium">申请</span>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const user = requireAuth('child');
+    if (user) {
+      document.getElementById('nav-avatar').textContent = user.avatar_emoji;
+      document.getElementById('nav-name').textContent = user.name;
+      document.getElementById('nav-points').textContent = user.points || 0;
+      loadRequests();
+    }
+
+    async function loadRequests() {
+      const res = await apiFetch('/redemptions');
+      if (!res) return;
+      const items = await res.json();
+
+      const pending = items.filter(i => i.status === 'pending');
+      const approved = items.filter(i => i.status === 'approved');
+      const rejected = items.filter(i => i.status === 'rejected');
+
+      renderList('pending-list', pending, 'pending');
+      renderList('approved-list', approved, 'approved');
+      renderList('rejected-list', rejected, 'rejected');
+    }
+
+    function renderList(elId, items, status) {
+      const el = document.getElementById(elId);
+      const emptyMessages = {
+        pending: '没有等待审核的申请',
+        approved: '还没有被批准的申请',
+        rejected: '没有未通过的申请'
+      };
+
+      if (items.length === 0) {
+        el.innerHTML = `<div class="text-gray-400 text-sm text-center py-2">${emptyMessages[status]}</div>`;
+        return;
+      }
+
+      const colors = {
+        pending: 'bg-yellow-50 border-yellow-200',
+        approved: 'bg-green-50 border-green-200',
+        rejected: 'bg-red-50 border-red-200'
+      };
+
+      el.innerHTML = items.map(r => `
+        <div class="rounded-2xl p-4 border ${colors[status]}">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">${r.reward_emoji}</span>
+            <div class="flex-1">
+              <div class="font-bold text-gray-800">${r.reward_name}</div>
+              <div class="text-sm ${status === 'approved' ? 'text-reward-green' : status === 'rejected' ? 'text-red-500' : 'text-yellow-600'} font-medium">
+                ${r.points_cost} 积分
+              </div>
+            </div>
+            <div class="text-gray-400 text-xs">${new Date(r.created_at).toLocaleDateString('zh-CN')}</div>
+          </div>
+          ${r.notes && status === 'rejected' ? `
+            <div class="mt-2 text-sm text-gray-600 bg-white rounded-xl p-2 border border-red-100">
+              💬 爸妈说: "${r.notes}"
+            </div>
+          ` : ''}
+          ${r.notes && status === 'approved' ? `
+            <div class="mt-2 text-sm text-gray-600 bg-white rounded-xl p-2 border border-green-100">
+              💬 爸妈说: "${r.notes}"
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

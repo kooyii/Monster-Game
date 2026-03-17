@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的积分 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6' } } }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+  <!-- Top Nav -->
+  <nav class="bg-gradient-to-r from-fun-purple to-fun-pink text-white shadow-lg">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span id="nav-avatar" class="text-2xl">🧒</span>
+        <span id="nav-name" class="font-bold"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 flex items-center gap-1">
+          <span class="text-star-yellow">⭐</span>
+          <span id="nav-points" class="font-bold text-sm">0</span>
+        </div>
+        <button onclick="logout()" class="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded-lg">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 py-6">
+    <!-- Hero -->
+    <div class="bg-gradient-to-br from-fun-purple to-fun-pink rounded-3xl p-6 text-white mb-6 shadow-lg">
+      <div class="text-center">
+        <div id="hero-avatar" class="text-7xl mb-3">🧒</div>
+        <div id="hero-greeting" class="text-xl font-bold mb-4">你好！</div>
+        <div class="text-6xl font-black mb-1">
+          <span id="balance-counter">0</span>
+        </div>
+        <div class="text-white text-opacity-80 text-sm">积分</div>
+      </div>
+    </div>
+
+    <!-- Recent earnings -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-gray-800">最近获得的积分</h2>
+        <a href="/child/history.html" class="text-sm text-fun-purple hover:underline">查看全部</a>
+      </div>
+      <div id="recent-earn" class="space-y-2">
+        <div class="text-gray-400 text-sm text-center py-3">加载中...</div>
+      </div>
+    </div>
+
+    <!-- Affordable rewards -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-gray-800">可以兑换的奖励</h2>
+        <a href="/child/catalog.html" class="text-sm text-fun-purple hover:underline">全部奖励</a>
+      </div>
+      <div id="affordable-rewards" class="space-y-2">
+        <div class="text-gray-400 text-sm text-center py-3">加载中...</div>
+      </div>
+    </div>
+
+    <!-- Pending requests -->
+    <div id="pending-section" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-yellow-200 mb-4">
+      <h2 class="font-bold text-gray-800 mb-3">⏳ 等待爸妈审核</h2>
+      <div id="pending-list" class="space-y-2"></div>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden">
+    <div class="flex">
+      <a href="/child/dashboard.html" class="flex-1 flex flex-col items-center py-2 text-fun-purple">
+        <span class="text-xl">🏠</span><span class="text-xs font-medium">首页</span>
+      </a>
+      <a href="/child/history.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">📋</span><span class="text-xs">记录</span>
+      </a>
+      <a href="/child/catalog.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">🎁</span><span class="text-xs">奖励</span>
+      </a>
+      <a href="/child/requests.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">📬</span><span class="text-xs">申请</span>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const user = requireAuth('child');
+    if (user) {
+      document.getElementById('nav-avatar').textContent = user.avatar_emoji;
+      document.getElementById('nav-name').textContent = user.name;
+      document.getElementById('hero-avatar').textContent = user.avatar_emoji;
+      document.getElementById('hero-greeting').textContent = `你好，${user.name}！`;
+      loadDashboard();
+    }
+
+    function animateCounter(el, target, duration = 1000) {
+      const start = performance.now();
+      const update = (time) => {
+        const progress = Math.min((time - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.floor(eased * target);
+        if (progress < 1) requestAnimationFrame(update);
+      };
+      requestAnimationFrame(update);
+    }
+
+    async function loadDashboard() {
+      const [meRes, txRes, rewardsRes, pendingRes] = await Promise.all([
+        apiFetch('/users/me'),
+        apiFetch('/points/transactions?limit=5'),
+        apiFetch('/rewards'),
+        apiFetch('/redemptions?status=pending')
+      ]);
+      if (!meRes) return;
+
+      const me = await meRes.json();
+      const transactions = txRes ? await txRes.json() : [];
+      const rewards = rewardsRes ? await rewardsRes.json() : [];
+      const pending = pendingRes ? await pendingRes.json() : [];
+
+      // Animate balance
+      animateCounter(document.getElementById('balance-counter'), me.points || 0);
+      document.getElementById('nav-points').textContent = me.points || 0;
+
+      // Sync user points in localStorage
+      const storedUser = JSON.parse(localStorage.getItem('rp_user') || '{}');
+      storedUser.points = me.points;
+      localStorage.setItem('rp_user', JSON.stringify(storedUser));
+
+      // Recent earnings
+      const earnEl = document.getElementById('recent-earn');
+      const earnTx = transactions.filter(t => t.points > 0).slice(0, 3);
+      if (earnTx.length === 0) {
+        earnEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-2">还没有积分记录</div>';
+      } else {
+        earnEl.innerHTML = earnTx.map(t => `
+          <div class="flex items-center justify-between py-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">⭐</span>
+              <span class="text-gray-700 text-sm">${t.description}</span>
+            </div>
+            <span class="text-reward-green font-bold">+${t.points}</span>
+          </div>
+        `).join('');
+      }
+
+      // Affordable rewards
+      const affordableEl = document.getElementById('affordable-rewards');
+      const affordable = rewards.filter(r => r.is_active && r.points_cost <= me.points).slice(0, 3);
+      if (affordable.length === 0) {
+        const cheapest = rewards.filter(r => r.is_active).sort((a, b) => a.points_cost - b.points_cost)[0];
+        if (cheapest) {
+          affordableEl.innerHTML = `
+            <div class="text-gray-500 text-sm text-center py-2">
+              再积累 <span class="font-bold text-fun-purple">${cheapest.points_cost - me.points}</span> 分可兑换 ${cheapest.emoji} ${cheapest.name}
+            </div>`;
+        } else {
+          affordableEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-2">暂无可用奖励</div>';
+        }
+      } else {
+        affordableEl.innerHTML = affordable.map(r => `
+          <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">${r.emoji}</span>
+              <span class="text-gray-700 text-sm font-medium">${r.name}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-fun-purple text-sm font-bold">${r.points_cost} 分</span>
+              <a href="/child/catalog.html" class="text-xs bg-fun-purple text-white px-2 py-1 rounded-lg">去兑换</a>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Pending requests
+      if (pending.length > 0) {
+        document.getElementById('pending-section').classList.remove('hidden');
+        document.getElementById('pending-list').innerHTML = pending.map(p => `
+          <div class="flex items-center gap-2 py-1.5">
+            <span class="text-xl">${p.reward_emoji}</span>
+            <span class="text-gray-700 text-sm flex-1">${p.reward_name}</span>
+            <span class="text-yellow-600 text-xs bg-yellow-50 px-2 py-0.5 rounded-full">等待审核</span>
+          </div>
+        `).join('');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>积分记录 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6' } } }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+  <nav class="bg-gradient-to-r from-fun-purple to-fun-pink text-white shadow-lg">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span id="nav-avatar" class="text-2xl">🧒</span>
+        <span id="nav-name" class="font-bold"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 flex items-center gap-1">
+          <span class="text-star-yellow">⭐</span>
+          <span id="nav-points" class="font-bold text-sm">0</span>
+        </div>
+        <button onclick="logout()" class="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded-lg">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">积分记录</h1>
+    <div id="history-list" class="space-y-3">
+      <div class="text-gray-400 text-center py-8">加载中...</div>
+    </div>
+    <div class="text-center mt-4">
+      <button id="load-more" onclick="loadMore()" class="hidden px-6 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">加载更多</button>
+    </div>
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden">
+    <div class="flex">
+      <a href="/child/dashboard.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">🏠</span><span class="text-xs">首页</span>
+      </a>
+      <a href="/child/history.html" class="flex-1 flex flex-col items-center py-2 text-fun-purple">
+        <span class="text-xl">📋</span><span class="text-xs font-medium">记录</span>
+      </a>
+      <a href="/child/catalog.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">🎁</span><span class="text-xs">奖励</span>
+      </a>
+      <a href="/child/requests.html" class="flex-1 flex flex-col items-center py-2 text-gray-400">
+        <span class="text-xl">📬</span><span class="text-xs">申请</span>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const user = requireAuth('child');
+    let offset = 0;
+    const LIMIT = 20;
+    let allLoaded = false;
+
+    if (user) {
+      document.getElementById('nav-avatar').textContent = user.avatar_emoji;
+      document.getElementById('nav-name').textContent = user.name;
+      document.getElementById('nav-points').textContent = user.points || 0;
+      loadHistory();
+    }
+
+    async function loadHistory(append = false) {
+      const res = await apiFetch(`/points/transactions?limit=${LIMIT}&offset=${offset}`);
+      if (!res) return;
+      const transactions = await res.json();
+
+      const el = document.getElementById('history-list');
+      if (!append) el.innerHTML = '';
+
+      if (transactions.length === 0 && !append) {
+        el.innerHTML = '<div class="text-gray-400 text-center py-8">还没有积分记录</div>';
+        return;
+      }
+
+      if (transactions.length < LIMIT) {
+        allLoaded = true;
+        document.getElementById('load-more').classList.add('hidden');
+      } else {
+        document.getElementById('load-more').classList.remove('hidden');
+      }
+
+      transactions.forEach(t => {
+        const isPositive = t.points > 0;
+        const icon = isPositive ? '⭐' : '🎁';
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3';
+        div.innerHTML = `
+          <div class="text-2xl">${icon}</div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-800">${t.description}</div>
+            <div class="text-gray-400 text-xs">${new Date(t.created_at).toLocaleString('zh-CN')}</div>
+          </div>
+          <span class="${isPositive ? 'text-reward-green' : 'text-red-500'} font-bold text-lg">
+            ${isPositive ? '+' : ''}${t.points}
+          </span>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    function loadMore() {
+      if (allLoaded) return;
+      offset += LIMIT;
+      loadHistory(true);
+    }
+  </script>
+</body>
+</html>
