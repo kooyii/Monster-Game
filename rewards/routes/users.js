@@ -20,6 +20,14 @@ router.get('/children', requireParent, (req, res) => {
   res.json(children);
 });
 
+// Leaderboard - any authenticated user can view rankings
+router.get('/leaderboard', requireAuth, (req, res) => {
+  const children = db.prepare(
+    "SELECT id, name, avatar_emoji, points FROM users WHERE role = 'child' ORDER BY points DESC"
+  ).all();
+  res.json(children);
+});
+
 // Create child account (parent only)
 router.post('/children', requireParent, (req, res) => {
   const { username, password, name, avatar_emoji } = req.body;
