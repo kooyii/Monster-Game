@@ -124,4 +124,35 @@ router.put('/:id', requireParent, (req, res) => {
   res.json(updated);
 });
 
+// Direct redemption by parent (no approval queue needed)
+router.post('/direct', requireParent, (req, res) => {
+  const { child_id, reward_id } = req.body;
+  if (!child_id || !reward_id) return res.status(400).json({ error: '请选择孩子和奖励' });
+
+  const reward = db.prepare('SELECT * FROM rewards WHERE id = ? AND is_active = 1').get(reward_id);
+  if (!reward) return res.status(404).json({ error: '奖励不存在' });
+
+  const child = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'child'").get(child_id);
+  if (!child) return res.status(404).json({ error: '孩子账号不存在' });
+
+  if (child.points < reward.points_cost) {
+    return res.status(400).json({ error: `积分不足，需要 ${reward.points_cost} 积分，当前 ${child.points} 积分` });
+  }
+
+  let newBalance;
+  const redeem = db.transaction(() => {
+    db.prepare('UPDATE users SET points = points - ? WHERE id = ?').run(reward.points_cost, child_id);
+    db.prepare(
+      "INSERT INTO point_transactions (child_id, awarded_by, points, description, type) VALUES (?, ?, ?, ?, 'redeem')"
+    ).run(child_id, req.user.id, -reward.points_cost, `兑换奖励: ${reward.name}`);
+    db.prepare(
+      "INSERT INTO redemption_requests (child_id, reward_id, status) VALUES (?, ?, 'approved')"
+    ).run(child_id, reward_id);
+    newBalance = db.prepare('SELECT points FROM users WHERE id = ?').get(child_id).points;
+  });
+  redeem();
+
+  res.json({ success: true, new_balance: newBalance });
+});
+
 module.exports = router;
