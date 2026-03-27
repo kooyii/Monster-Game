@@ -52,7 +52,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: selectedEmoji == e ? kGreen.withOpacity(0.15) : Colors.transparent,
+                        color: selectedEmoji == e ? kGreen.withValues(alpha:0.15) : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: selectedEmoji == e ? kGreen : Colors.transparent, width: 2),
                       ),
@@ -72,7 +72,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                     children: [
                       const Text('激活状态'),
                       const Spacer(),
-                      Switch(value: isActive, onChanged: (v) => setS(() => isActive = v), activeColor: kGreen),
+                      Switch(value: isActive, onChanged: (v) => setS(() => isActive = v), activeThumbColor: kGreen),
                     ],
                   ),
                 ],
@@ -159,7 +159,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(icon: Icon(Icons.edit, color: kGreen), onPressed: () => _showDialog(r)),
+                                IconButton(icon: const Icon(Icons.edit, color: kGreen), onPressed: () => _showDialog(r)),
                                 IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _delete(r)),
                               ],
                             ),

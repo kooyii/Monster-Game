@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../api_service.dart';
 import '../../models.dart';
-import '../../providers.dart';
 import '../../theme.dart';
 
 class ParentDashboard extends ConsumerStatefulWidget {
@@ -201,7 +200,7 @@ class _AwardWidgetState extends State<_AwardWidget> {
     return Column(
       children: [
         DropdownButtonFormField<Child>(
-          value: _selectedChild,
+          initialValue: _selectedChild,
           hint: const Text('选择孩子'),
           decoration: const InputDecoration(prefixIcon: Icon(Icons.person)),
           items: widget.children.map((c) => DropdownMenuItem(value: c, child: Text('${c.avatarEmoji} ${c.name} (${c.points} 积分)'))).toList(),
@@ -287,7 +286,7 @@ class _RedeemWidgetState extends State<_RedeemWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<Child>(
-          value: _selectedChild,
+          initialValue: _selectedChild,
           hint: const Text('选择孩子'),
           decoration: const InputDecoration(prefixIcon: Icon(Icons.person)),
           items: widget.children.map((c) => DropdownMenuItem(value: c, child: Text('${c.avatarEmoji} ${c.name} (${c.points} 积分)'))).toList(),

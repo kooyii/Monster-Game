@@ -146,7 +146,7 @@ class _NumPad extends StatelessWidget {
       children: keys.map((k) {
         if (k.isEmpty) return const SizedBox();
         return Material(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha:0.2),
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),

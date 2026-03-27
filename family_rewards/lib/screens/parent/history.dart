@@ -44,7 +44,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: DropdownButtonFormField<Child?>(
-              value: _filterChild,
+              initialValue: _filterChild,
               decoration: const InputDecoration(labelText: '筛选孩子（全部）', prefixIcon: Icon(Icons.filter_list)),
               items: [
                 const DropdownMenuItem(value: null, child: Text('全部孩子')),
@@ -116,7 +116,7 @@ class _TxCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: isEarn ? kGreen.withOpacity(0.15) : Colors.redAccent.withOpacity(0.15),
+                    color: isEarn ? kGreen.withValues(alpha: 0.15) : Colors.redAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(isEarn ? '获得' : '兑换', style: TextStyle(fontSize: 10, color: isEarn ? kGreen : Colors.redAccent, fontWeight: FontWeight.bold)),

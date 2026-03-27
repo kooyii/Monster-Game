@@ -26,7 +26,7 @@ final appTheme = ThemeData(
       textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
     ),
   ),
-  cardTheme: CardTheme(
+  cardTheme: CardThemeData(
     elevation: 3,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
@@ -49,5 +49,5 @@ const kGradient = LinearGradient(
 BoxDecoration gradientDecoration({double borderRadius = 20}) => BoxDecoration(
       gradient: kGradient,
       borderRadius: BorderRadius.circular(borderRadius),
-      boxShadow: [BoxShadow(color: kPurple.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+      boxShadow: [BoxShadow(color: kPurple.withValues(alpha:0.3), blurRadius: 12, offset: const Offset(0, 4))],
     );

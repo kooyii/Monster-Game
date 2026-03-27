@@ -54,7 +54,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: selectedEmoji == e ? kPurple.withOpacity(0.15) : Colors.transparent,
+                        color: selectedEmoji == e ? kPurple.withValues(alpha:0.15) : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: selectedEmoji == e ? kPurple : Colors.transparent, width: 2),
                       ),
