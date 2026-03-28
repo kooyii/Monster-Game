@@ -60,9 +60,12 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         const Text('😵', style: TextStyle(fontSize: 48)),
                         const SizedBox(height: 12),
-                        Text('连接失败', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                        Text('加载失败', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
                         const SizedBox(height: 8),
-                        Text('请重试或重启应用', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text('$e', style: TextStyle(color: Colors.red.shade400, fontSize: 11), textAlign: TextAlign.center),
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () => ref.invalidate(publicChildrenProvider),
