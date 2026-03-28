@@ -62,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                         Text('连接失败', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
                         const SizedBox(height: 8),
-                        Text('请确保服务器已启动', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                        Text('请重试或重启应用', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () => ref.invalidate(publicChildrenProvider),
