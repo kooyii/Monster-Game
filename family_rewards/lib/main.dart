@@ -43,9 +43,9 @@ class _AppEntryState extends State<AppEntry> {
   }
 
   Future<void> _checkSetup() async {
-    final url = await getSavedServerUrl();
+    final hasAccount = await hasParentAccount();
     setState(() {
-      _needsSetup = url == null || url.isEmpty;
+      _needsSetup = !hasAccount;
       _checking = false;
     });
   }
@@ -53,9 +53,7 @@ class _AppEntryState extends State<AppEntry> {
   @override
   Widget build(BuildContext context) {
     if (_checking) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_needsSetup) {
       return SetupScreen(onDone: () => setState(() => _needsSetup = false));

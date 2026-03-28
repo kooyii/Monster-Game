@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../api_service.dart';
 import '../providers.dart';
 import '../theme.dart';
 
@@ -12,25 +11,34 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  final _urlCtrl = TextEditingController(text: 'http://192.168.1.');
   final _userCtrl = TextEditingController(text: 'admin');
-  final _passCtrl = TextEditingController(text: 'family2024');
+  final _passCtrl = TextEditingController();
+  final _pass2Ctrl = TextEditingController();
   bool _loading = false;
   String? _error;
 
-  Future<void> _connect() async {
-    final url = _urlCtrl.text.trim().replaceAll(RegExp(r'/$'), '');
-    if (!url.startsWith('http')) {
-      setState(() => _error = '请输入完整地址，如 http://192.168.1.5:3000');
+  Future<void> _save() async {
+    final user = _userCtrl.text.trim();
+    final pass = _passCtrl.text;
+    final pass2 = _pass2Ctrl.text;
+    if (user.isEmpty || pass.isEmpty) {
+      setState(() => _error = '请填写用户名和密码');
+      return;
+    }
+    if (pass != pass2) {
+      setState(() => _error = '两次密码不一致');
+      return;
+    }
+    if (pass.length < 4) {
+      setState(() => _error = '密码至少4位');
       return;
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await saveServerUrl(url);
-      await ApiService().login(_userCtrl.text.trim(), _passCtrl.text);
+      await saveParentAccount(user, pass);
       widget.onDone();
     } catch (e) {
-      setState(() => _error = '连接失败，请检查地址和账号密码\n$e');
+      setState(() => _error = '保存失败: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -55,23 +63,8 @@ class _SetupScreenState extends State<SetupScreen> {
                       const SizedBox(height: 8),
                       const Text('家庭积分', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 4),
-                      const Text('首次使用，请设置服务器地址', style: TextStyle(color: Colors.grey)),
+                      const Text('首次使用，请创建家长账号', style: TextStyle(color: Colors.grey)),
                       const SizedBox(height: 28),
-                      TextField(
-                        controller: _urlCtrl,
-                        decoration: const InputDecoration(
-                          labelText: '服务器地址',
-                          hintText: 'http://192.168.1.5:3000',
-                          prefixIcon: Icon(Icons.computer),
-                        ),
-                        keyboardType: TextInputType.url,
-                      ),
-                      const SizedBox(height: 12),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('家长账号', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-                      ),
-                      const SizedBox(height: 8),
                       TextField(
                         controller: _userCtrl,
                         decoration: const InputDecoration(labelText: '用户名', prefixIcon: Icon(Icons.person)),
@@ -81,6 +74,12 @@ class _SetupScreenState extends State<SetupScreen> {
                         controller: _passCtrl,
                         obscureText: true,
                         decoration: const InputDecoration(labelText: '密码', prefixIcon: Icon(Icons.lock)),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _pass2Ctrl,
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: '确认密码', prefixIcon: Icon(Icons.lock_outline)),
                       ),
                       if (_error != null) ...[
                         const SizedBox(height: 12),
@@ -94,17 +93,11 @@ class _SetupScreenState extends State<SetupScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _loading ? null : _connect,
+                          onPressed: _loading ? null : _save,
                           child: _loading
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('连接并开始使用'),
+                              : const Text('创建账号并开始使用'),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '💡 提示：电脑上启动服务后，控制台会显示手机访问地址',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),

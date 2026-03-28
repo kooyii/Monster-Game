@@ -1,22 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'models.dart';
-
-// ── Server URL ────────────────────────────────────────────────────────────────
-final serverUrlProvider = StateProvider<String>((ref) => '');
 
 // ── Parent auth state ─────────────────────────────────────────────────────────
 class AuthNotifier extends StateNotifier<bool> {
   AuthNotifier() : super(false);
 
   final _storage = const FlutterSecureStorage();
-
-  Future<bool> checkPin(String pin) async {
-    final stored = await _storage.read(key: 'parent_pin');
-    return stored == pin;
-  }
 
   Future<bool> hasPin() async {
     final pin = await _storage.read(key: 'parent_pin');
@@ -27,14 +18,14 @@ class AuthNotifier extends StateNotifier<bool> {
     await _storage.write(key: 'parent_pin', value: pin);
   }
 
+  Future<bool> checkPin(String pin) async {
+    final stored = await _storage.read(key: 'parent_pin');
+    return stored == pin;
+  }
+
   Future<bool> loginWithPin(String pin) async {
     final ok = await checkPin(pin);
     if (!ok) return false;
-    final api = ApiService();
-    if (!api.isLoggedIn) {
-      final relogged = await api.relogin();
-      if (!relogged) return false;
-    }
     state = true;
     return true;
   }
@@ -54,7 +45,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, bool>((ref) => AuthNoti
 
 // ── Data providers ────────────────────────────────────────────────────────────
 final childrenProvider = FutureProvider.autoDispose<List<Child>>((ref) async {
-  ref.watch(authProvider); // refresh when auth changes
+  ref.watch(authProvider);
   return ApiService().getChildren();
 });
 
@@ -72,14 +63,15 @@ final transactionsProvider = FutureProvider.autoDispose<List<PointTransaction>>(
   return ApiService().getTransactions(limit: 30);
 });
 
-// Helper: get server URL from SharedPreferences
-Future<String?> getSavedServerUrl() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString('server_url');
+// ── Parent account helpers ────────────────────────────────────────────────────
+Future<bool> hasParentAccount() async {
+  const storage = FlutterSecureStorage();
+  final user = await storage.read(key: 'parent_username');
+  return user != null && user.isNotEmpty;
 }
 
-Future<void> saveServerUrl(String url) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString('server_url', url);
-  await ApiService().reinit();
+Future<void> saveParentAccount(String username, String password) async {
+  const storage = FlutterSecureStorage();
+  await storage.write(key: 'parent_username', value: username);
+  await storage.write(key: 'parent_password', value: password);
 }

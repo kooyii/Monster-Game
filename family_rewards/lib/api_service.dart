@@ -1,6 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'local_db.dart';
 import 'models.dart';
 
 class ApiService {
@@ -9,133 +8,76 @@ class ApiService {
   ApiService._internal();
 
   final _storage = const FlutterSecureStorage();
-  late Dio _dio;
-  String? _token;
+  bool _loggedIn = false;
 
-  Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseUrl = prefs.getString('server_url') ?? 'http://192.168.1.1:3000';
-    _token = await _storage.read(key: 'jwt_token');
-    _dio = Dio(BaseOptions(
-      baseUrl: '$baseUrl/api',
-      connectTimeout: const Duration(seconds: 8),
-      receiveTimeout: const Duration(seconds: 8),
-    ));
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        if (_token != null) options.headers['Authorization'] = 'Bearer $_token';
-        handler.next(options);
-      },
-    ));
-  }
+  Future<void> init() async {}
+  Future<void> reinit() async {}
 
-  Future<void> reinit() async => init();
-
-  // ── Auth ──────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login(String username, String password) async {
-    final res = await _dio.post('/auth/login', data: {'username': username, 'password': password});
-    _token = res.data['token'];
-    await _storage.write(key: 'jwt_token', value: _token);
-    await _storage.write(key: 'parent_username', value: username);
-    await _storage.write(key: 'parent_password', value: password);
-    _dio.options.headers['Authorization'] = 'Bearer $_token';
-    return res.data;
+    final storedUser = await _storage.read(key: 'parent_username');
+    final storedPass = await _storage.read(key: 'parent_password');
+    if (storedUser == null || storedPass == null) throw Exception('账号未设置');
+    if (username != storedUser || password != storedPass) throw Exception('账号或密码错误');
+    _loggedIn = true;
+    return {'success': true};
   }
 
   Future<bool> relogin() async {
-    try {
-      final u = await _storage.read(key: 'parent_username');
-      final p = await _storage.read(key: 'parent_password');
-      if (u == null || p == null) return false;
-      await login(u, p);
-      return true;
-    } catch (_) {
-      return false;
-    }
+    _loggedIn = true;
+    return true;
   }
 
-  void logout() {
-    _token = null;
-    _storage.delete(key: 'jwt_token');
-  }
+  void logout() => _loggedIn = false;
 
-  bool get isLoggedIn => _token != null;
+  bool get isLoggedIn => _loggedIn;
 
-  // ── Public (no auth) ──────────────────────────────────────────────────
-  Future<List<Child>> getPublicChildren() async {
-    final res = await _dio.get('/public/children');
-    return (res.data as List).map((e) => Child.fromJson(e)).toList();
-  }
+  // ── Public (no auth needed) ───────────────────────────────────────────────
+  Future<List<Child>> getPublicChildren() => LocalDb().getChildren();
 
-  Future<Map<String, dynamic>> getPublicChild(int id) async {
-    final res = await _dio.get('/public/children/$id');
-    return res.data;
-  }
+  Future<Map<String, dynamic>> getPublicChild(int id) => LocalDb().getChildDetail(id);
 
-  Future<List<Reward>> getPublicRewards() async {
-    final res = await _dio.get('/public/rewards');
-    return (res.data as List).map((e) => Reward.fromJson(e)).toList();
-  }
+  Future<List<Reward>> getPublicRewards() => LocalDb().getRewards(allRewards: false);
 
-  // ── Children (parent auth) ────────────────────────────────────────────
-  Future<List<Child>> getChildren() async {
-    final res = await _dio.get('/users/children');
-    return (res.data as List).map((e) => Child.fromJson(e)).toList();
-  }
+  // ── Children ──────────────────────────────────────────────────────────────
+  Future<List<Child>> getChildren() => LocalDb().getChildren();
 
-  Future<void> createChild(String name, String username, String password, String avatarEmoji) async {
-    await _dio.post('/users/children', data: {
-      'name': name, 'username': username, 'password': password, 'avatar_emoji': avatarEmoji,
-    });
-  }
+  Future<void> createChild(String name, String username, String password, String avatarEmoji) =>
+      LocalDb().createChild(name, avatarEmoji);
 
   Future<void> updateChild(int id, Map<String, dynamic> data) async {
-    await _dio.put('/users/$id', data: data);
+    final dbData = <String, dynamic>{};
+    if (data.containsKey('name')) dbData['name'] = data['name'];
+    if (data.containsKey('avatar_emoji')) dbData['avatar_emoji'] = data['avatar_emoji'];
+    await LocalDb().updateChild(id, dbData);
   }
 
-  Future<void> deleteChild(int id) async {
-    await _dio.delete('/users/$id');
-  }
+  Future<void> deleteChild(int id) => LocalDb().deleteChild(id);
 
-  // ── Points ────────────────────────────────────────────────────────────
+  // ── Points ────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> awardPoints(int childId, int points, String description) async {
-    final res = await _dio.post('/points/award', data: {'child_id': childId, 'points': points, 'description': description});
-    return res.data;
+    final newBalance = await LocalDb().awardPoints(childId, points, description);
+    return {'new_balance': newBalance};
   }
 
-  Future<List<PointTransaction>> getTransactions({int? childId, int limit = 30}) async {
-    final params = <String, dynamic>{'limit': limit};
-    if (childId != null) params['child_id'] = childId;
-    final res = await _dio.get('/points/transactions', queryParameters: params);
-    return (res.data as List).map((e) => PointTransaction.fromJson(e)).toList();
-  }
+  Future<List<PointTransaction>> getTransactions({int? childId, int limit = 30}) =>
+      LocalDb().getTransactions(childId: childId, limit: limit);
 
-  // ── Rewards ───────────────────────────────────────────────────────────
-  Future<List<Reward>> getRewards({bool all = true}) async {
-    final res = await _dio.get('/rewards', queryParameters: all ? {'all': 1} : {});
-    return (res.data as List).map((e) => Reward.fromJson(e)).toList();
-  }
+  // ── Rewards ───────────────────────────────────────────────────────────────
+  Future<List<Reward>> getRewards({bool all = true}) => LocalDb().getRewards(allRewards: all);
 
-  Future<void> createReward(String name, int pointsCost, String emoji, {String? description}) async {
-    await _dio.post('/rewards', data: {'name': name, 'points_cost': pointsCost, 'emoji': emoji, 'description': description});
-  }
+  Future<void> createReward(String name, int pointsCost, String emoji, {String? description}) =>
+      LocalDb().createReward(name, pointsCost, emoji, description: description);
 
-  Future<void> updateReward(int id, Map<String, dynamic> data) async {
-    await _dio.put('/rewards/$id', data: data);
-  }
+  Future<void> updateReward(int id, Map<String, dynamic> data) => LocalDb().updateReward(id, data);
 
-  Future<void> deleteReward(int id) async {
-    await _dio.delete('/rewards/$id');
-  }
+  Future<void> deleteReward(int id) => LocalDb().deleteReward(id);
 
-  // ── Redemptions ───────────────────────────────────────────────────────
+  // ── Redemptions ───────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> directRedeem(int childId, int rewardId) async {
-    final res = await _dio.post('/redemptions/direct', data: {'child_id': childId, 'reward_id': rewardId});
-    return res.data;
+    final newBalance = await LocalDb().directRedeem(childId, rewardId);
+    return {'new_balance': newBalance};
   }
 
-  Future<List<RedemptionRecord>> getRedemptions() async {
-    final res = await _dio.get('/redemptions?status=approved');
-    return (res.data as List).map((e) => RedemptionRecord.fromJson(e)).toList();
-  }
+  Future<List<RedemptionRecord>> getRedemptions() => LocalDb().getRedemptions();
 }

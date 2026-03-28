@@ -32,8 +32,6 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
 
   void _showChildDialog(Child? child) {
     final nameCtrl = TextEditingController(text: child?.name ?? '');
-    final userCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
     String selectedEmoji = child?.avatarEmoji ?? '😊';
     bool loading = false;
 
@@ -64,12 +62,6 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '姓名')),
-                if (child == null) ...[
-                  const SizedBox(height: 10),
-                  TextField(controller: userCtrl, decoration: const InputDecoration(labelText: '用户名（登录用）')),
-                  const SizedBox(height: 10),
-                  TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: '密码')),
-                ],
               ],
             ),
           ),
@@ -80,11 +72,9 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                 setS(() => loading = true);
                 try {
                   if (child == null) {
-                    await ApiService().createChild(nameCtrl.text.trim(), userCtrl.text.trim(), passCtrl.text, selectedEmoji);
+                    await ApiService().createChild(nameCtrl.text.trim(), '', '', selectedEmoji);
                   } else {
-                    final data = {'name': nameCtrl.text.trim(), 'avatar_emoji': selectedEmoji};
-                    if (passCtrl.text.isNotEmpty) data['password'] = passCtrl.text;
-                    await ApiService().updateChild(child.id, data);
+                    await ApiService().updateChild(child.id, {'name': nameCtrl.text.trim(), 'avatar_emoji': selectedEmoji});
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
                   _load();
