@@ -6,6 +6,7 @@ import 'dashboard.dart';
 import 'children.dart';
 import 'rewards.dart';
 import 'history.dart';
+import 'lottery_tab.dart';
 
 class ParentApp extends ConsumerStatefulWidget {
   const ParentApp({super.key});
@@ -18,6 +19,7 @@ class _ParentAppState extends ConsumerState<ParentApp> {
 
   final _screens = const [
     ParentDashboard(),
+    LotteryTab(),
     ChildrenScreen(),
     RewardsScreen(),
     HistoryScreen(),
@@ -49,6 +51,7 @@ class _ParentAppState extends ConsumerState<ParentApp> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: '首页'),
+          NavigationDestination(icon: Text('🎰', style: TextStyle(fontSize: 20)), selectedIcon: Text('🎰', style: TextStyle(fontSize: 20)), label: '抽奖'),
           NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: '孩子'),
           NavigationDestination(icon: Icon(Icons.card_giftcard_outlined), selectedIcon: Icon(Icons.card_giftcard), label: '奖励'),
           NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: '记录'),
