@@ -56,6 +56,15 @@ class PointTransaction {
       );
 }
 
+class Punishment {
+  final int id;
+  final String emoji;
+  final String title;
+  final int pointsDelta; // 0 = task only, negative = deduct points
+
+  Punishment({required this.id, required this.emoji, required this.title, required this.pointsDelta});
+}
+
 class RedemptionRecord {
   final int id;
   final String childName;

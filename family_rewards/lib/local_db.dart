@@ -18,7 +18,7 @@ class LocalDb {
     final path = join(await getDatabasesPath(), 'family_rewards.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE children (
@@ -58,8 +58,69 @@ class LocalDb {
             created_at TEXT NOT NULL
           )
         ''');
+        await _createPunishmentsTable(db);
+        await _insertDefaultPunishments(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createPunishmentsTable(db);
+          await _insertDefaultPunishments(db);
+        }
       },
     );
+  }
+
+  static Future<void> _createPunishmentsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS punishments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        emoji TEXT DEFAULT '😅',
+        title TEXT NOT NULL,
+        points_delta INTEGER DEFAULT 0
+      )
+    ''');
+  }
+
+  static Future<void> _insertDefaultPunishments(Database db) async {
+    final defaults = [
+      {'emoji': '😅', 'title': '扣1积分', 'points_delta': -1},
+      {'emoji': '😬', 'title': '扣2积分', 'points_delta': -2},
+      {'emoji': '🏃', 'title': '做20个深蹲', 'points_delta': 0},
+      {'emoji': '🍽️', 'title': '帮忙洗碗一次', 'points_delta': 0},
+      {'emoji': '📚', 'title': '额外读书20分钟', 'points_delta': 0},
+      {'emoji': '🌙', 'title': '今晚早睡30分钟', 'points_delta': 0},
+    ];
+    for (final p in defaults) {
+      await db.insert('punishments', p);
+    }
+  }
+
+  // ── Punishments ───────────────────────────────────────────────────────────
+  Future<List<Punishment>> getPunishments() async {
+    final d = await db;
+    final rows = await d.query('punishments', orderBy: 'id ASC');
+    return rows.map((r) => Punishment(
+      id: r['id'] as int,
+      emoji: r['emoji'] as String? ?? '😅',
+      title: r['title'] as String,
+      pointsDelta: r['points_delta'] as int? ?? 0,
+    )).toList();
+  }
+
+  Future<void> createPunishment(String emoji, String title, int pointsDelta) async {
+    final d = await db;
+    await d.insert('punishments', {'emoji': emoji, 'title': title, 'points_delta': pointsDelta});
+  }
+
+  Future<void> updatePunishment(int id, String emoji, String title, int pointsDelta) async {
+    final d = await db;
+    await d.update('punishments', {'emoji': emoji, 'title': title, 'points_delta': pointsDelta},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deletePunishment(int id) async {
+    final d = await db;
+    await d.delete('punishments', where: 'id = ?', whereArgs: [id]);
   }
 
   // ── Children ──────────────────────────────────────────────────────────────

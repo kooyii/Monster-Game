@@ -5,6 +5,7 @@ import '../providers.dart';
 import '../theme.dart';
 import 'child_view_screen.dart';
 import 'pin_screen.dart';
+import 'parent/parent_app.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -162,7 +163,7 @@ class _ParentButton extends ConsumerWidget {
     return ElevatedButton.icon(
       onPressed: () {
         if (isLoggedIn) {
-          Navigator.pushNamed(context, '/parent');
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ParentApp()));
         } else {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const PinScreen()));
         }

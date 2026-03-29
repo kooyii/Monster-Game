@@ -3,6 +3,7 @@ import '../../api_service.dart';
 import '../../models.dart';
 import '../../theme.dart';
 import '../lottery_screen.dart';
+import 'punishments_screen.dart';
 
 class LotteryTab extends StatefulWidget {
   const LotteryTab({super.key});
@@ -36,6 +37,14 @@ class _LotteryTabState extends State<LotteryTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A0533),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const PunishmentsScreen()));
+        },
+        backgroundColor: Colors.redAccent,
+        tooltip: '管理惩罚',
+        child: const Icon(Icons.settings, color: Colors.white),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : RefreshIndicator(
