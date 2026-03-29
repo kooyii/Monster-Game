@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../models.dart';
 import '../theme.dart';
+import 'lottery_screen.dart';
 
 class ChildViewScreen extends StatefulWidget {
   final Child child;
@@ -53,7 +54,17 @@ class _ChildViewScreenState extends State<ChildViewScreen> {
       backgroundColor: const Color(0xFFF5F3FF),
       appBar: AppBar(
         title: Text('${_child.avatarEmoji} ${_child.name}'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
+        actions: [
+          IconButton(
+            icon: const Text('🎰', style: TextStyle(fontSize: 22)),
+            tooltip: '幸运抽奖',
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => LotteryScreen(child: _child)));
+              _load();
+            },
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
