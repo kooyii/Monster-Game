@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models.dart';
@@ -26,32 +27,19 @@ class HomeScreen extends ConsumerWidget {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   children: [
-                    const Text('⭐', style: TextStyle(fontSize: 28)),
+                    const Text('⭐', style: TextStyle(fontSize: 26)),
                     const SizedBox(width: 8),
-                    const Text('家庭积分', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF4C1D95))),
+                    const Text('家庭积分', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF4C1D95))),
                     const Spacer(),
                     _ParentButton(),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    const Text('🏆', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 6),
-                    Text('积分排行榜', style: TextStyle(fontSize: 15, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
               const SizedBox(height: 12),
-              // Children list
               Expanded(
                 child: childrenAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
@@ -79,23 +67,20 @@ class HomeScreen extends ConsumerWidget {
                   data: (children) {
                     if (children.isEmpty) {
                       return const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('👶', style: TextStyle(fontSize: 48)),
-                            SizedBox(height: 12),
-                            Text('还没有孩子账号', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                            Text('请家长登录后添加', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Text('👶', style: TextStyle(fontSize: 48)),
+                          SizedBox(height: 12),
+                          Text('还没有孩子', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                          Text('请家长登录后添加', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                        ]),
                       );
                     }
                     return RefreshIndicator(
                       onRefresh: () async => ref.invalidate(publicChildrenProvider),
                       child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                         itemCount: children.length,
-                        itemBuilder: (ctx, i) => _ChildCard(child: children[i], rank: i + 1),
+                        itemBuilder: (ctx, i) => _ChildGrowthCard(child: children[i], rank: i + 1),
                       ),
                     );
                   },
@@ -109,22 +94,55 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _ChildCard extends StatelessWidget {
+// ── Level system ──────────────────────────────────────────────────────────────
+String _levelTitle(int pts) {
+  if (pts >= 500) return '👑 传奇';
+  if (pts >= 200) return '🏆 冠军';
+  if (pts >= 100) return '💫 高手';
+  if (pts >= 50)  return '🌟 进阶';
+  if (pts >= 20)  return '⭐ 成长';
+  return '🌱 新手';
+}
+
+Color _levelColor(int pts) {
+  if (pts >= 500) return const Color(0xFFFF8C00);
+  if (pts >= 200) return const Color(0xFF7C3AED);
+  if (pts >= 100) return const Color(0xFF2563EB);
+  if (pts >= 50)  return const Color(0xFF059669);
+  if (pts >= 20)  return const Color(0xFF0891B2);
+  return Colors.grey;
+}
+
+// Returns [currentInLevel, levelSize, nextThreshold]
+List<int> _levelProgress(int pts) {
+  const thresholds = [0, 20, 50, 100, 200, 500];
+  for (int i = 0; i < thresholds.length - 1; i++) {
+    if (pts < thresholds[i + 1]) {
+      return [pts - thresholds[i], thresholds[i + 1] - thresholds[i], thresholds[i + 1]];
+    }
+  }
+  return [pts - 500, 0, 0]; // max level
+}
+
+// ── Child growth card ─────────────────────────────────────────────────────────
+class _ChildGrowthCard extends StatelessWidget {
   final Child child;
   final int rank;
-  const _ChildCard({required this.child, required this.rank});
+  const _ChildGrowthCard({required this.child, required this.rank});
 
   @override
   Widget build(BuildContext context) {
+    final levelColor = _levelColor(child.points);
+    final progress = _levelProgress(child.points);
+    final isMaxLevel = progress[1] == 0;
+    final pct = isMaxLevel ? 1.0 : (progress[0] / progress[1]).clamp(0.0, 1.0);
     final medals = ['🥇', '🥈', '🥉'];
-    final medal = rank <= 3 ? medals[rank - 1] : '$rank';
-    final colors = [
-      const Color(0xFFFFFBEB), const Color(0xFFF9FAFB), const Color(0xFFFFFBEB)
-    ];
-    final bg = rank <= 3 ? colors[rank - 1] : Colors.white;
+    final medal = rank <= 3 ? medals[rank - 1] : '#$rank';
 
     return Card(
-      color: bg,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: rank == 1 ? 4 : 1,
       child: InkWell(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChildViewScreen(child: child))),
         borderRadius: BorderRadius.circular(20),
@@ -132,22 +150,65 @@ class _ChildCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Text(medal, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 14),
-              Text(child.avatarEmoji, style: const TextStyle(fontSize: 36)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(child.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              // Rank medal
+              SizedBox(
+                width: 32,
+                child: Text(medal, style: const TextStyle(fontSize: 22), textAlign: TextAlign.center),
               ),
+              const SizedBox(width: 12),
+              // Avatar
+              _ChildAvatar(child: child, size: 60),
+              const SizedBox(width: 14),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(child.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: levelColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(_levelTitle(child.points),
+                              style: TextStyle(fontSize: 11, color: levelColor, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Progress bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 6,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: AlwaysStoppedAnimation<Color>(levelColor),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isMaxLevel ? '已达最高等级 🎉' : '距下一级还差 ${progress[2] - child.points} 积分',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Points
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${child.points}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: kPurple)),
+                  Text('${child.points}', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: levelColor)),
                   const Text('积分', style: TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              Icon(Icons.chevron_right, color: Colors.grey.shade300),
             ],
           ),
         ),
@@ -156,6 +217,24 @@ class _ChildCard extends StatelessWidget {
   }
 }
 
+class _ChildAvatar extends StatelessWidget {
+  final Child child;
+  final double size;
+  const _ChildAvatar({required this.child, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = child.avatarPath != null && File(child.avatarPath!).existsSync();
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: _levelColor(child.points).withValues(alpha: 0.15),
+      backgroundImage: hasPhoto ? FileImage(File(child.avatarPath!)) : null,
+      child: hasPhoto ? null : Text(child.avatarEmoji, style: TextStyle(fontSize: size * 0.45)),
+    );
+  }
+}
+
+// ── Parent login button ───────────────────────────────────────────────────────
 class _ParentButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -169,7 +248,7 @@ class _ParentButton extends ConsumerWidget {
         }
       },
       icon: const Text('👨‍👩‍👧', style: TextStyle(fontSize: 16)),
-      label: Text(isLoggedIn ? '家长控制台' : '家长登录'),
+      label: Text(isLoggedIn ? '控制台' : '家长'),
       style: ElevatedButton.styleFrom(
         backgroundColor: kPurple,
         foregroundColor: Colors.white,

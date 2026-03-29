@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../models.dart';
@@ -83,7 +84,9 @@ class _ChildViewScreenState extends State<ChildViewScreen> {
                       decoration: gradientDecoration(borderRadius: 24),
                       child: Column(
                         children: [
-                          Text(_child.avatarEmoji, style: const TextStyle(fontSize: 56)),
+                          _child.avatarPath != null && File(_child.avatarPath!).existsSync()
+                              ? CircleAvatar(radius: 44, backgroundImage: FileImage(File(_child.avatarPath!)))
+                              : Text(_child.avatarEmoji, style: const TextStyle(fontSize: 56)),
                           const SizedBox(height: 8),
                           Text(_child.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                           const SizedBox(height: 12),

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers.dart';
 import '../../theme.dart';
+import '../settings_screen.dart';
 import 'dashboard.dart';
-import 'children.dart';
-import 'rewards.dart';
 import 'history.dart';
 import 'lottery_tab.dart';
 
@@ -20,8 +19,6 @@ class _ParentAppState extends ConsumerState<ParentApp> {
   final _screens = const [
     ParentDashboard(),
     LotteryTab(),
-    ChildrenScreen(),
-    RewardsScreen(),
     HistoryScreen(),
   ];
 
@@ -35,6 +32,11 @@ class _ParentAppState extends ConsumerState<ParentApp> {
           children: [Text('⭐', style: TextStyle(fontSize: 20)), SizedBox(width: 6), Text('家长控制台')],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '设置',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: '退出家长模式',
@@ -52,8 +54,6 @@ class _ParentAppState extends ConsumerState<ParentApp> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: '首页'),
           NavigationDestination(icon: Text('🎰', style: TextStyle(fontSize: 20)), selectedIcon: Text('🎰', style: TextStyle(fontSize: 20)), label: '抽奖'),
-          NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: '孩子'),
-          NavigationDestination(icon: Icon(Icons.card_giftcard_outlined), selectedIcon: Icon(Icons.card_giftcard), label: '奖励'),
           NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: '记录'),
         ],
       ),

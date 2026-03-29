@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../api_service.dart';
+import '../../local_db.dart';
 import '../../models.dart';
 import '../../theme.dart';
 
@@ -163,11 +164,18 @@ class _AwardWidgetState extends State<_AwardWidget> {
   final _pointsCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   bool _loading = false;
+  List<QuickReason> _quickReasons = [];
 
-  final _quickActions = [
-    ('🗑️ 倒垃圾', 1), ('🍽️ 洗碗', 3), ('🏠 收拾房间', 3),
-    ('📚 阅读30分钟', 1), ('🏅 考试获奖', 3), ('❌ 未值日', -1),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadReasons();
+  }
+
+  Future<void> _loadReasons() async {
+    final r = await LocalDb().getQuickReasons();
+    if (mounted) setState(() => _quickReasons = r);
+  }
 
   Future<void> _award() async {
     final child = _selectedChild;
@@ -220,10 +228,10 @@ class _AwardWidgetState extends State<_AwardWidget> {
         const SizedBox(height: 10),
         Wrap(
           spacing: 8, runSpacing: 6,
-          children: _quickActions.map((qa) => ActionChip(
-            label: Text(qa.$1, style: const TextStyle(fontSize: 12)),
-            onPressed: () { _descCtrl.text = qa.$1.substring(3); _pointsCtrl.text = '${qa.$2}'; },
-            backgroundColor: qa.$2 > 0 ? Colors.green.shade50 : Colors.red.shade50,
+          children: _quickReasons.map((r) => ActionChip(
+            label: Text('${r.emoji} ${r.label}', style: const TextStyle(fontSize: 12)),
+            onPressed: () { _descCtrl.text = r.label; _pointsCtrl.text = '${r.points}'; },
+            backgroundColor: r.points > 0 ? Colors.green.shade50 : Colors.red.shade50,
           )).toList(),
         ),
         const SizedBox(height: 12),

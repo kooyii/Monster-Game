@@ -74,9 +74,7 @@ class _LotteryScreenState extends State<LotteryScreen> {
   }
 
   List<_SlotItem> _buildPool(List<Reward> rewards, List<Punishment> punishments) {
-    final pool = <_SlotItem>[
-      const _SlotItem(type: _SlotType.blank, emoji: '💨', label: '空白'),
-    ];
+    final pool = <_SlotItem>[];
     for (final p in punishments) {
       pool.add(_SlotItem(type: _SlotType.punishment, emoji: p.emoji, label: p.title, pointsDelta: p.pointsDelta));
     }
@@ -90,20 +88,14 @@ class _LotteryScreenState extends State<LotteryScreen> {
     final rng = Random();
     final roll = rng.nextDouble();
 
-    // 10% blank
-    if (roll < 0.10) {
-      return _pool.firstWhere((i) => i.type == _SlotType.blank,
-          orElse: () => const _SlotItem(type: _SlotType.blank, emoji: '💨', label: '空白'));
-    }
-
-    // 20% punishment
-    if (roll < 0.30) {
+    // 20% punishment — uniform random
+    if (roll < 0.20) {
       final items = _pool.where((i) => i.type == _SlotType.punishment).toList();
       if (items.isEmpty) return const _SlotItem(type: _SlotType.blank, emoji: '💨', label: '空白');
       return items[rng.nextInt(items.length)];
     }
 
-    // 70% reward — inversely weighted by cost
+    // 80% reward — inversely weighted by cost
     final rewardItems = _pool.where((i) => i.type == _SlotType.reward).toList();
     if (rewardItems.isEmpty) return const _SlotItem(type: _SlotType.blank, emoji: '💨', label: '空白');
 
@@ -278,28 +270,41 @@ class _LotteryScreenState extends State<LotteryScreen> {
       context: context,
       backgroundColor: const Color(0xFF1A003A),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('抽奖概率', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-            const SizedBox(height: 4),
-            const Text('奖励所需积分越多，抽中概率越低', style: TextStyle(color: Colors.white38, fontSize: 12)),
-            const SizedBox(height: 16),
-            _OddsRow('💨 空白', '10.0%', Colors.white38),
-            _OddsRow('😅 惩罚（合计）', '20.0%', Colors.redAccent),
-            if (rewardItems.isNotEmpty && total > 0) ...[
-              const Divider(color: Colors.white12, height: 20),
-              ...rewardItems.asMap().entries.map((e) {
-                final pct = ((weights[e.key] / total) * 70).toStringAsFixed(1);
-                final r = _rewards.firstWhere((r) => r.id == e.value.rewardId, orElse: () => _rewards.first);
-                return _OddsRow('${e.value.emoji} ${e.value.label} (${r.pointsCost}积分)', '$pct%', const Color(0xFFFFD700));
-              }),
-            ] else
-              const _OddsRow('（奖励栏为空，请先添加奖励）', '', Colors.white24),
-          ],
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.5,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        builder: (_, scrollCtrl) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              const Text('抽奖概率', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 4),
+              const Text('奖励所需积分越多，抽中概率越低', style: TextStyle(color: Colors.white38, fontSize: 12)),
+              const SizedBox(height: 16),
+              _OddsRow('😅 惩罚（合计）', '20.000%', Colors.redAccent),
+              if (rewardItems.isNotEmpty && total > 0) ...[
+                const Divider(color: Colors.white12, height: 20),
+              ],
+              Expanded(
+                child: ListView(
+                  controller: scrollCtrl,
+                  children: rewardItems.isNotEmpty && total > 0
+                      ? rewardItems.asMap().entries.map((e) {
+                          final pct = ((weights[e.key] / total) * 80).toStringAsFixed(3);
+                          final r = _rewards.firstWhere((r) => r.id == e.value.rewardId, orElse: () => _rewards.first);
+                          return _OddsRow('${e.value.emoji} ${e.value.label} (${r.pointsCost}积分)', '$pct%', const Color(0xFFFFD700));
+                        }).toList()
+                      : [const _OddsRow('（奖励栏为空，请先添加奖励）', '', Colors.white24)],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

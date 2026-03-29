@@ -2,14 +2,16 @@ class Child {
   final int id;
   final String name;
   final String avatarEmoji;
+  final String? avatarPath;
   final int points;
 
-  Child({required this.id, required this.name, required this.avatarEmoji, required this.points});
+  Child({required this.id, required this.name, required this.avatarEmoji, this.avatarPath, required this.points});
 
   factory Child.fromJson(Map<String, dynamic> j) => Child(
         id: j['id'],
         name: j['name'],
         avatarEmoji: j['avatar_emoji'] ?? '😊',
+        avatarPath: j['avatar_path'] as String?,
         points: j['points'] ?? 0,
       );
 }
@@ -38,7 +40,7 @@ class PointTransaction {
   final int id;
   final int points;
   final String description;
-  final String type; // 'earn' | 'redeem'
+  final String type;
   final String createdAt;
   final String? childName;
   final String? avatarEmoji;
@@ -54,15 +56,6 @@ class PointTransaction {
         childName: j['child_name'],
         avatarEmoji: j['avatar_emoji'],
       );
-}
-
-class Punishment {
-  final int id;
-  final String emoji;
-  final String title;
-  final int pointsDelta; // 0 = task only, negative = deduct points
-
-  Punishment({required this.id, required this.emoji, required this.title, required this.pointsDelta});
 }
 
 class RedemptionRecord {
@@ -85,4 +78,22 @@ class RedemptionRecord {
         status: j['status'] ?? 'approved',
         createdAt: j['created_at'] ?? '',
       );
+}
+
+class Punishment {
+  final int id;
+  final String emoji;
+  final String title;
+  final int pointsDelta;
+
+  Punishment({required this.id, required this.emoji, required this.title, required this.pointsDelta});
+}
+
+class QuickReason {
+  final int id;
+  final String emoji;
+  final String label;
+  final int points;
+
+  QuickReason({required this.id, required this.emoji, required this.label, required this.points});
 }

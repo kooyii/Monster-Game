@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../api_service.dart';
+import '../../local_db.dart';
 import '../../models.dart';
 import '../../theme.dart';
 
@@ -33,7 +37,19 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
   void _showChildDialog(Child? child) {
     final nameCtrl = TextEditingController(text: child?.name ?? '');
     String selectedEmoji = child?.avatarEmoji ?? '😊';
+    String? pickedImagePath = child?.avatarPath;
     bool loading = false;
+
+    Future<void> pickPhoto(StateSetter setS) async {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (image != null) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final fileName = 'child_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final saved = await File(image.path).copy('${appDir.path}/$fileName');
+        setS(() => pickedImagePath = saved.path);
+      }
+    }
 
     showDialog(
       context: context,
@@ -44,17 +60,45 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Avatar picker
+                // Photo picker
+                GestureDetector(
+                  onTap: () => pickPhoto(setS),
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 44,
+                        backgroundColor: kPurple.withValues(alpha: 0.15),
+                        backgroundImage: pickedImagePath != null && File(pickedImagePath!).existsSync()
+                            ? FileImage(File(pickedImagePath!)) : null,
+                        child: pickedImagePath == null
+                            ? Text(selectedEmoji, style: const TextStyle(fontSize: 36))
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0, right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(color: kPurple, shape: BoxShape.circle),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('点击更换照片', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 12),
+                // Emoji fallback picker
                 Wrap(
                   spacing: 8, runSpacing: 8,
                   children: _avatars.map((e) => GestureDetector(
-                    onTap: () => setS(() => selectedEmoji = e),
+                    onTap: () => setS(() { selectedEmoji = e; pickedImagePath = null; }),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: selectedEmoji == e ? kPurple.withValues(alpha:0.15) : Colors.transparent,
+                        color: selectedEmoji == e && pickedImagePath == null ? kPurple.withValues(alpha: 0.15) : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: selectedEmoji == e ? kPurple : Colors.transparent, width: 2),
+                        border: Border.all(color: selectedEmoji == e && pickedImagePath == null ? kPurple : Colors.transparent, width: 2),
                       ),
                       child: Text(e, style: const TextStyle(fontSize: 24)),
                     ),
@@ -72,9 +116,14 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                 setS(() => loading = true);
                 try {
                   if (child == null) {
-                    await ApiService().createChild(nameCtrl.text.trim(), '', '', selectedEmoji);
+                    await LocalDb().createChild(nameCtrl.text.trim(), selectedEmoji, avatarPath: pickedImagePath);
                   } else {
-                    await ApiService().updateChild(child.id, {'name': nameCtrl.text.trim(), 'avatar_emoji': selectedEmoji});
+                    final data = <String, dynamic>{
+                      'name': nameCtrl.text.trim(),
+                      'avatar_emoji': selectedEmoji,
+                      'avatar_path': pickedImagePath,
+                    };
+                    await ApiService().updateChild(child.id, data);
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
                   _load();
@@ -130,7 +179,10 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: _children.isEmpty
-                  ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('👶', style: TextStyle(fontSize: 48)), SizedBox(height: 12), Text('还没有孩子账号', style: TextStyle(color: Colors.grey))]))
+                  ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text('👶', style: TextStyle(fontSize: 48)), SizedBox(height: 12),
+                      Text('还没有孩子账号', style: TextStyle(color: Colors.grey)),
+                    ]))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                       itemCount: _children.length,
@@ -138,7 +190,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                         final c = _children[i];
                         return Card(
                           child: ListTile(
-                            leading: Text(c.avatarEmoji, style: const TextStyle(fontSize: 36)),
+                            leading: _ChildAvatar(child: c, size: 44),
                             title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text('${c.points} 积分', style: const TextStyle(color: kPurple, fontWeight: FontWeight.w600)),
                             trailing: Row(
@@ -153,6 +205,23 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                       },
                     ),
             ),
+    );
+  }
+}
+
+class _ChildAvatar extends StatelessWidget {
+  final Child child;
+  final double size;
+  const _ChildAvatar({required this.child, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = child.avatarPath != null && File(child.avatarPath!).existsSync();
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: kPurple.withValues(alpha: 0.15),
+      backgroundImage: hasPhoto ? FileImage(File(child.avatarPath!)) : null,
+      child: hasPhoto ? null : Text(child.avatarEmoji, style: TextStyle(fontSize: size * 0.5)),
     );
   }
 }

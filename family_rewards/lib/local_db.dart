@@ -18,13 +18,14 @@ class LocalDb {
     final path = join(await getDatabasesPath(), 'family_rewards.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE children (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             avatar_emoji TEXT DEFAULT '😊',
+            avatar_path TEXT,
             points INTEGER DEFAULT 0
           )
         ''');
@@ -60,11 +61,18 @@ class LocalDb {
         ''');
         await _createPunishmentsTable(db);
         await _insertDefaultPunishments(db);
+        await _createQuickReasonsTable(db);
+        await _insertDefaultQuickReasons(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await _createPunishmentsTable(db);
           await _insertDefaultPunishments(db);
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE children ADD COLUMN avatar_path TEXT');
+          await _createQuickReasonsTable(db);
+          await _insertDefaultQuickReasons(db);
         }
       },
     );
@@ -123,6 +131,59 @@ class LocalDb {
     await d.delete('punishments', where: 'id = ?', whereArgs: [id]);
   }
 
+  // ── Quick Reasons ─────────────────────────────────────────────────────────
+  static Future<void> _createQuickReasonsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS quick_reasons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        emoji TEXT DEFAULT '⭐',
+        label TEXT NOT NULL,
+        points INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+  }
+
+  static Future<void> _insertDefaultQuickReasons(Database db) async {
+    final defaults = [
+      {'emoji': '🗑️', 'label': '倒垃圾', 'points': 1},
+      {'emoji': '🍽️', 'label': '洗碗', 'points': 3},
+      {'emoji': '🏠', 'label': '收拾房间', 'points': 3},
+      {'emoji': '📚', 'label': '阅读30分钟', 'points': 1},
+      {'emoji': '🏅', 'label': '考试获奖', 'points': 5},
+      {'emoji': '❌', 'label': '未值日', 'points': -1},
+    ];
+    for (final r in defaults) {
+      await db.insert('quick_reasons', r);
+    }
+  }
+
+  Future<List<QuickReason>> getQuickReasons() async {
+    final d = await db;
+    final rows = await d.query('quick_reasons', orderBy: 'id ASC');
+    return rows.map((r) => QuickReason(
+      id: r['id'] as int,
+      emoji: r['emoji'] as String? ?? '⭐',
+      label: r['label'] as String,
+      points: r['points'] as int? ?? 1,
+    )).toList();
+  }
+
+  Future<void> createQuickReason(String emoji, String label, int points) async {
+    final d = await db;
+    await d.insert('quick_reasons', {'emoji': emoji, 'label': label, 'points': points});
+  }
+
+  Future<void> updateQuickReason(int id, String emoji, String label, int points) async {
+    final d = await db;
+    await d.update('quick_reasons', {'emoji': emoji, 'label': label, 'points': points},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteQuickReason(int id) async {
+    final d = await db;
+    await d.delete('quick_reasons', where: 'id = ?', whereArgs: [id]);
+  }
+
   // ── Children ──────────────────────────────────────────────────────────────
   Future<List<Child>> getChildren() async {
     final d = await db;
@@ -131,6 +192,7 @@ class LocalDb {
       id: r['id'] as int,
       name: r['name'] as String,
       avatarEmoji: r['avatar_emoji'] as String? ?? '😊',
+      avatarPath: r['avatar_path'] as String?,
       points: r['points'] as int? ?? 0,
     )).toList();
   }
@@ -144,13 +206,14 @@ class LocalDb {
       id: r['id'] as int,
       name: r['name'] as String,
       avatarEmoji: r['avatar_emoji'] as String? ?? '😊',
+      avatarPath: r['avatar_path'] as String?,
       points: r['points'] as int? ?? 0,
     );
   }
 
-  Future<void> createChild(String name, String avatarEmoji) async {
+  Future<void> createChild(String name, String avatarEmoji, {String? avatarPath}) async {
     final d = await db;
-    await d.insert('children', {'name': name, 'avatar_emoji': avatarEmoji, 'points': 0});
+    await d.insert('children', {'name': name, 'avatar_emoji': avatarEmoji, 'avatar_path': avatarPath, 'points': 0});
   }
 
   Future<void> updateChild(int id, Map<String, dynamic> data) async {

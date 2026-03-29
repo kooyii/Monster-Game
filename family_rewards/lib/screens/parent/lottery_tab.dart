@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../api_service.dart';
 import '../../models.dart';
@@ -141,7 +142,9 @@ class _ChildLotteryCard extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             child: Row(
               children: [
-                Text(child.avatarEmoji, style: const TextStyle(fontSize: 44)),
+                child.avatarPath != null && File(child.avatarPath!).existsSync()
+                  ? CircleAvatar(radius: 28, backgroundImage: FileImage(File(child.avatarPath!)))
+                  : Text(child.avatarEmoji, style: const TextStyle(fontSize: 44)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
