@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>奖励目录 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6' } } }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+  <nav class="bg-gradient-to-r from-fun-purple to-fun-pink text-white shadow-lg">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span id="nav-avatar" class="text-2xl">🧒</span>
+        <span id="nav-name" class="font-bold"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="bg-white bg-opacity-20 rounded-full px-3 py-1 flex items-center gap-1">
+          <span class="text-star-yellow">⭐</span>
+          <span id="nav-points" class="font-bold text-sm">0</span>
+        </div>
+        <button onclick="logout()" class="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded-lg">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-2xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">奖励目录</h1>
+    <div id="catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="text-gray-400 col-span-full text-center py-8">加载中...</div>
+    </div>
+  </main>
+
+  <!-- Confirm Modal -->
+  <div id="confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
+      <div id="confirm-emoji" class="text-6xl mb-3"></div>
+      <h2 id="confirm-title" class="text-lg font-bold mb-1"></h2>
+      <p id="confirm-cost" class="text-fun-purple font-bold text-xl mb-4"></p>
+      <p class="text-gray-500 text-sm mb-6">确定要申请兑换这个奖励吗？需要等爸爸妈妈审核。</p>
+      <div class="flex gap-3">
+        <button onclick="confirmRedeem()" class="flex-1 py-2.5 bg-fun-purple text-white rounded-xl font-semibold hover:opacity-90">我想要！</button>
+        <button onclick="closeConfirm()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-purple-100 shadow-2xl">
+    <div class="flex max-w-2xl mx-auto">
+      <a href="/child/dashboard.html" class="flex-1 flex flex-col items-center py-2.5 text-gray-400 hover:text-fun-purple">
+        <span class="text-2xl">🏠</span><span class="text-xs">首页</span>
+      </a>
+      <a href="/child/history.html" class="flex-1 flex flex-col items-center py-2.5 text-gray-400 hover:text-fun-purple">
+        <span class="text-2xl">📋</span><span class="text-xs">记录</span>
+      </a>
+      <a href="/child/catalog.html" class="flex-1 flex flex-col items-center py-2.5 text-fun-purple">
+        <span class="text-2xl">🎁</span><span class="text-xs font-bold">奖励</span>
+      </a>
+      <a href="/child/rules.html" class="flex-1 flex flex-col items-center py-2.5 text-gray-400 hover:text-fun-purple">
+        <span class="text-2xl">📜</span><span class="text-xs">规则</span>
+      </a>
+      <a href="/child/requests.html" class="flex-1 flex flex-col items-center py-2.5 text-gray-400 hover:text-fun-purple">
+        <span class="text-2xl">📬</span><span class="text-xs">申请</span>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    const user = requireAuth('child');
+    let selectedRewardId = null;
+    let myBalance = 0;
+
+    if (user) {
+      document.getElementById('nav-avatar').textContent = user.avatar_emoji;
+      document.getElementById('nav-name').textContent = user.name;
+      loadCatalog();
+    }
+
+    async function loadCatalog() {
+      const [meRes, rewardsRes] = await Promise.all([
+        apiFetch('/users/me'),
+        apiFetch('/rewards')
+      ]);
+      if (!meRes || !rewardsRes) return;
+
+      const me = await meRes.json();
+      const rewards = await rewardsRes.json();
+      myBalance = me.points || 0;
+
+      document.getElementById('nav-points').textContent = myBalance;
+
+      const el = document.getElementById('catalog-grid');
+      if (rewards.length === 0) {
+        el.innerHTML = '<div class="text-gray-400 col-span-full text-center py-8">暂无奖励</div>';
+        return;
+      }
+
+      const sorted = rewards.filter(r => r.is_active).sort((a, b) => a.points_cost - b.points_cost);
+      el.innerHTML = sorted.map(r => {
+        const canAfford = myBalance >= r.points_cost;
+        const need = r.points_cost - myBalance;
+        return `
+          <div class="bg-white rounded-2xl p-5 shadow-sm border ${canAfford ? 'border-reward-green border-2' : 'border-gray-100'} flex flex-col">
+            <div class="text-5xl text-center mb-3">${r.emoji}</div>
+            <h3 class="font-bold text-gray-800 text-center mb-1">${r.name}</h3>
+            ${r.description ? `<p class="text-gray-500 text-xs text-center mb-2">${r.description}</p>` : '<div class="mb-2"></div>'}
+            <div class="text-center mb-4">
+              <span class="text-fun-purple font-bold text-lg">${r.points_cost}</span>
+              <span class="text-gray-400 text-sm"> 积分</span>
+            </div>
+            ${canAfford
+              ? `<button onclick="openConfirm(${r.id}, '${r.name.replace(/'/g, "\\'")}', ${r.points_cost}, '${r.emoji}')"
+                  class="mt-auto w-full py-2.5 bg-reward-green text-white rounded-xl font-semibold hover:opacity-90 text-sm">
+                  我想要！🎉
+                </button>`
+              : `<div class="mt-auto text-center text-xs text-gray-400 bg-gray-50 rounded-xl py-2">
+                  还需要 <span class="font-semibold text-fun-pink">${need}</span> 积分
+                </div>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openConfirm(id, name, cost, emoji) {
+      selectedRewardId = id;
+      document.getElementById('confirm-emoji').textContent = emoji;
+      document.getElementById('confirm-title').textContent = name;
+      document.getElementById('confirm-cost').textContent = `${cost} 积分`;
+      document.getElementById('confirm-modal').classList.remove('hidden');
+    }
+
+    function closeConfirm() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      selectedRewardId = null;
+    }
+
+    async function confirmRedeem() {
+      if (!selectedRewardId) return;
+      closeConfirm();
+
+      const res = await apiFetch('/redemptions', {
+        method: 'POST',
+        body: { reward_id: selectedRewardId }
+      });
+      if (!res) return;
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '申请失败', 'error');
+        return;
+      }
+      showToast('申请已提交！等待爸妈审核 🎉');
+      setTimeout(() => window.location.href = '/child/requests.html', 1500);
+    }
+  </script>
+</body>
+</html>

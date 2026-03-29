@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>奖励目录 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6' } } }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-fun-purple text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2"><span class="text-2xl">⭐</span><span class="font-bold text-lg">家庭积分</span></div>
+      <div class="hidden md:flex items-center gap-6 text-sm font-medium">
+        <a href="/parent/dashboard.html" class="opacity-75 hover:opacity-100">控制台</a>
+        <a href="/parent/children.html" class="opacity-75 hover:opacity-100">孩子管理</a>
+        <a href="/parent/award.html" class="opacity-75 hover:opacity-100">奖励积分</a>
+        <a href="/parent/rewards.html" class="opacity-100">奖励目录</a>
+        <a href="/parent/redemptions.html" class="opacity-75 hover:opacity-100">兑换申请</a>
+      </div>
+      <button onclick="logout()" class="text-sm bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg">退出</button>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">奖励目录</h1>
+      <button onclick="openAddModal()" class="bg-fun-purple text-white px-4 py-2 rounded-xl text-sm font-semibold hover:opacity-90">+ 添加奖励</button>
+    </div>
+
+    <!-- Active rewards -->
+    <div id="rewards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div class="text-gray-400 col-span-full text-center py-8">加载中...</div>
+    </div>
+
+    <!-- Archived section -->
+    <details class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-500 hover:bg-gray-50 select-none">已归档的奖励</summary>
+      <div id="archived-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4"></div>
+    </details>
+  </main>
+
+  <!-- Add/Edit Modal -->
+  <div id="reward-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+      <h2 id="modal-title" class="text-lg font-bold mb-4">添加奖励</h2>
+      <input type="hidden" id="modal-id">
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">奖励名称</label>
+          <input type="text" id="modal-name" placeholder="如：看一场电影" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">描述（可选）</label>
+          <textarea id="modal-desc" rows="2" placeholder="奖励详情..." class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">所需积分</label>
+          <input type="number" id="modal-cost" min="1" placeholder="如：50" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">图标</label>
+          <div id="modal-emoji-picker" class="flex flex-wrap gap-1.5 mt-1">
+            <input type="hidden" id="modal-emoji" value="🎁">
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button onclick="saveReward()" class="bg-fun-purple text-white px-6 py-2 rounded-xl text-sm font-semibold hover:opacity-90">保存</button>
+        <button onclick="closeModal()" class="border border-gray-300 text-gray-700 px-6 py-2 rounded-xl text-sm hover:bg-gray-50">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth('parent');
+
+    const REWARD_EMOJIS = ['🎁', '🎬', '⚽', '🎱', '🍜', '🎮', '🧸', '🍦', '🎡', '📚', '🎨', '🎤', '🚴', '🏊', '🛒', '✈️'];
+
+    function buildEmojiPicker(containerId, inputId, selected = '🎁') {
+      const container = document.getElementById(containerId);
+      const input = document.getElementById(inputId);
+      container.innerHTML = '';
+      container.appendChild(input);
+      REWARD_EMOJIS.forEach(e => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = e;
+        btn.className = `text-2xl w-10 h-10 rounded-xl hover:bg-gray-100 ${e === selected ? 'ring-2 ring-fun-purple bg-purple-50' : ''}`;
+        btn.onclick = () => {
+          input.value = e;
+          container.querySelectorAll('button').forEach(b => b.className = 'text-2xl w-10 h-10 rounded-xl hover:bg-gray-100');
+          btn.className = 'text-2xl w-10 h-10 rounded-xl ring-2 ring-fun-purple bg-purple-50';
+        };
+        container.appendChild(btn);
+      });
+      input.value = selected;
+    }
+
+    async function loadRewards() {
+      const res = await apiFetch('/rewards?all=1');
+      if (!res) return;
+      const rewards = await res.json();
+
+      const active = rewards.filter(r => r.is_active);
+      const archived = rewards.filter(r => !r.is_active);
+
+      renderGrid('rewards-grid', active, false);
+      renderGrid('archived-grid', archived, true);
+    }
+
+    function renderGrid(elId, rewards, isArchived) {
+      const el = document.getElementById(elId);
+      if (rewards.length === 0) {
+        el.innerHTML = `<div class="text-gray-400 col-span-full text-center py-4">暂无${isArchived ? '归档' : ''}奖励</div>`;
+        return;
+      }
+
+      el.innerHTML = rewards.map(r => `
+        <div class="bg-white rounded-2xl p-5 shadow-sm border ${isArchived ? 'border-gray-100 opacity-60' : 'border-gray-100'}">
+          <div class="flex items-start justify-between mb-3">
+            <div class="text-4xl">${r.emoji}</div>
+            <div class="bg-fun-purple bg-opacity-10 text-fun-purple px-2 py-0.5 rounded-full text-sm font-bold">${r.points_cost} 积分</div>
+          </div>
+          <h3 class="font-bold text-gray-800 mb-1">${r.name}</h3>
+          ${r.description ? `<p class="text-gray-500 text-sm mb-3">${r.description}</p>` : '<div class="mb-3"></div>'}
+          <div class="flex gap-2">
+            <button onclick='openEditModal(${JSON.stringify(r)})' class="flex-1 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">编辑</button>
+            ${isArchived
+              ? `<button onclick="toggleActive(${r.id}, true)" class="flex-1 py-1.5 text-sm border border-green-200 text-green-600 rounded-lg hover:bg-green-50">恢复</button>`
+              : `<button onclick="toggleActive(${r.id}, false)" class="flex-1 py-1.5 text-sm border border-red-200 text-red-500 rounded-lg hover:bg-red-50">归档</button>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openAddModal() {
+      document.getElementById('modal-id').value = '';
+      document.getElementById('modal-title').textContent = '添加奖励';
+      document.getElementById('modal-name').value = '';
+      document.getElementById('modal-desc').value = '';
+      document.getElementById('modal-cost').value = '';
+      buildEmojiPicker('modal-emoji-picker', 'modal-emoji');
+      document.getElementById('reward-modal').classList.remove('hidden');
+    }
+
+    function openEditModal(reward) {
+      document.getElementById('modal-id').value = reward.id;
+      document.getElementById('modal-title').textContent = '编辑奖励';
+      document.getElementById('modal-name').value = reward.name;
+      document.getElementById('modal-desc').value = reward.description || '';
+      document.getElementById('modal-cost').value = reward.points_cost;
+      buildEmojiPicker('modal-emoji-picker', 'modal-emoji', reward.emoji);
+      document.getElementById('reward-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('reward-modal').classList.add('hidden');
+    }
+
+    async function saveReward() {
+      const id = document.getElementById('modal-id').value;
+      const name = document.getElementById('modal-name').value.trim();
+      const description = document.getElementById('modal-desc').value.trim();
+      const points_cost = parseInt(document.getElementById('modal-cost').value);
+      const emoji = document.getElementById('modal-emoji').value;
+
+      if (!name || !points_cost) { showToast('请填写名称和积分', 'error'); return; }
+
+      const isEdit = !!id;
+      const res = await apiFetch(isEdit ? `/rewards/${id}` : '/rewards', {
+        method: isEdit ? 'PUT' : 'POST',
+        body: { name, description, points_cost, emoji }
+      });
+      if (!res) return;
+
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || '操作失败', 'error'); return; }
+
+      showToast(isEdit ? '已更新！' : '奖励已添加！');
+      closeModal();
+      loadRewards();
+    }
+
+    async function toggleActive(id, activate) {
+      const res = await apiFetch(`/rewards/${id}`, {
+        method: 'PUT',
+        body: { is_active: activate ? 1 : 0 }
+      });
+      if (!res) return;
+      showToast(activate ? '奖励已恢复' : '奖励已归档');
+      loadRewards();
+    }
+
+    loadRewards();
+  </script>
+</body>
+</html>

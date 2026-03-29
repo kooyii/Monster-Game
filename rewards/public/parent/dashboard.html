@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家长控制台 - 家庭积分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { 'star-yellow': '#FBBF24', 'reward-green': '#10B981', 'points-blue': '#3B82F6', 'fun-pink': '#EC4899', 'fun-purple': '#8B5CF6', 'fun-orange': '#F97316', 'fun-teal': '#14B8A6' } } }
+    }
+  </script>
+  <style>
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes slide-up { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .float-anim { animation: float 3s ease-in-out infinite; }
+    .shimmer-bg { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(139,92,246,0.15); }
+    .slide-up { animation: slide-up 0.5s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 min-h-screen">
+
+  <!-- Nav -->
+  <nav class="bg-gradient-to-r from-fun-purple via-points-blue to-fun-pink text-white shadow-xl relative overflow-hidden">
+    <div class="absolute inset-0 shimmer-bg"></div>
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between relative z-10">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl float-anim">⭐</span>
+        <span class="font-black text-xl">家庭积分</span>
+      </div>
+      <div class="hidden md:flex items-center gap-5 text-sm font-medium">
+        <a href="/parent/dashboard.html" class="bg-white bg-opacity-20 px-3 py-1 rounded-lg">🏠 控制台</a>
+        <a href="/parent/children.html" class="opacity-80 hover:opacity-100 hover:bg-white hover:bg-opacity-20 px-3 py-1 rounded-lg transition-all">👶 孩子管理</a>
+        <a href="/parent/award.html" class="opacity-80 hover:opacity-100 hover:bg-white hover:bg-opacity-20 px-3 py-1 rounded-lg transition-all">🎯 奖励积分</a>
+        <a href="/parent/rewards.html" class="opacity-80 hover:opacity-100 hover:bg-white hover:bg-opacity-20 px-3 py-1 rounded-lg transition-all">🎁 奖励目录</a>
+        <a href="/parent/redemptions.html" class="opacity-80 hover:opacity-100 hover:bg-white hover:bg-opacity-20 px-3 py-1 rounded-lg transition-all">📋 兑换记录</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="user-name" class="text-sm opacity-90 font-semibold"></span>
+        <button onclick="logout()" class="text-sm bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg transition-all">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-black text-gray-800 mb-6 flex items-center gap-2">
+      <span>🏠</span> 家长控制台
+    </h1>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-2xl p-5 shadow-lg border border-purple-100 card-hover">
+        <div class="text-3xl mb-2 float-anim inline-block">👨‍👩‍👧</div>
+        <div id="stat-children" class="text-3xl font-black text-fun-purple">-</div>
+        <div class="text-sm text-gray-500 font-medium">孩子账号</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-lg border border-yellow-100 card-hover">
+        <div class="text-3xl mb-2 float-anim inline-block" style="animation-delay:0.5s">⭐</div>
+        <div id="stat-points" class="text-3xl font-black text-star-yellow">-</div>
+        <div class="text-sm text-gray-500 font-medium">本周发放积分</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-lg border border-pink-100 card-hover">
+        <div class="text-3xl mb-2 float-anim inline-block" style="animation-delay:1s">🎁</div>
+        <div id="stat-redeemed" class="text-3xl font-black text-fun-pink">-</div>
+        <div class="text-sm text-gray-500 font-medium">已兑换次数</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-lg border border-green-100 card-hover">
+        <div class="text-3xl mb-2 float-anim inline-block" style="animation-delay:1.5s">🎁</div>
+        <div id="stat-rewards" class="text-3xl font-black text-reward-green">-</div>
+        <div class="text-sm text-gray-500 font-medium">奖励项目</div>
+      </div>
+    </div>
+
+    <!-- Leaderboard + Quick Award + Redeem row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+      <!-- Leaderboard -->
+      <div class="bg-white rounded-3xl p-6 shadow-lg border border-purple-100 card-hover slide-up">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-2xl">🏆</span>
+          <h2 class="text-lg font-black text-gray-800">积分排行榜</h2>
+        </div>
+        <div id="leaderboard" class="space-y-3">
+          <div class="text-gray-400 text-sm text-center py-3">加载中...</div>
+        </div>
+      </div>
+
+      <!-- Quick Award -->
+      <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100 card-hover">
+        <h2 class="text-lg font-black text-gray-800 mb-4 flex items-center gap-2"><span>🎯</span> 快速奖励积分</h2>
+        <div class="space-y-3">
+          <select id="quick-child" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple focus:border-fun-purple transition-all">
+            <option value="">选择孩子 👶</option>
+          </select>
+          <input type="number" id="quick-points" placeholder="积分数量（负数为扣除）" min="-1000" max="1000"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple focus:border-fun-purple transition-all">
+          <input type="text" id="quick-desc" placeholder="原因（如：倒垃圾、阅读30分钟…）"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fun-purple focus:border-fun-purple transition-all">
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setQuickReason('倒垃圾', 1)" class="py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold border border-blue-200 transition-all">🗑️ 倒垃圾 +1</button>
+            <button onclick="setQuickReason('洗碗', 3)" class="py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl text-xs font-semibold border border-green-200 transition-all">🍽️ 洗碗 +3</button>
+            <button onclick="setQuickReason('收拾家里', 3)" class="py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-semibold border border-purple-200 transition-all">🏠 收拾 +3</button>
+            <button onclick="setQuickReason('阅读30分钟', 1)" class="py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-xl text-xs font-semibold border border-yellow-200 transition-all">📚 阅读 +1</button>
+            <button onclick="setQuickReason('考试获奖', 3)" class="py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-semibold border border-red-200 transition-all">🏅 获奖 +3</button>
+            <button onclick="setQuickReason('当天未值日', -1)" class="py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-semibold border border-gray-200 transition-all">❌ 未值日 -1</button>
+          </div>
+          <button onclick="quickAward()" class="w-full py-3 bg-gradient-to-r from-fun-purple to-fun-pink text-white rounded-xl text-sm font-black hover:opacity-90 transition-all shadow-lg">🎯 发放积分</button>
+        </div>
+      </div>
+
+      <!-- Redeem Reward for Child -->
+      <div class="bg-white rounded-3xl p-6 shadow-lg border border-green-100 card-hover">
+        <h2 class="text-lg font-black text-gray-800 mb-4 flex items-center gap-2"><span>🎁</span> 帮孩子兑换奖励</h2>
+        <div class="space-y-3">
+          <select id="redeem-child" onchange="loadRedeemRewards()" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-reward-green focus:border-reward-green transition-all">
+            <option value="">选择孩子 👶</option>
+          </select>
+          <div id="redeem-child-points" class="hidden text-center py-1 text-fun-purple font-bold text-sm bg-purple-50 rounded-xl px-3"></div>
+          <div id="no-child-msg" class="text-gray-400 text-sm text-center py-6">请先选择孩子</div>
+          <div id="rewards-list" class="hidden space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-3xl p-6 shadow-lg border border-gray-100 card-hover">
+      <h2 class="text-lg font-black text-gray-800 mb-4 flex items-center gap-2"><span>📊</span> 最近积分记录</h2>
+      <div id="recent-transactions" class="space-y-2 text-sm">
+        <div class="text-gray-400 text-center py-4">加载中...</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    let cachedChildren = [];
+    let cachedRewards = [];
+
+    const user = requireAuth('parent');
+    if (user) {
+      document.getElementById('user-name').textContent = user.name;
+      loadDashboard();
+    }
+
+    function setQuickReason(desc, pts) {
+      document.getElementById('quick-desc').value = desc;
+      document.getElementById('quick-points').value = pts;
+    }
+
+    async function loadDashboard() {
+      const [childrenRes, rewardsRes, redemptionsRes, txRes, lbRes] = await Promise.all([
+        apiFetch('/users/children'),
+        apiFetch('/rewards'),
+        apiFetch('/redemptions?status=approved'),
+        apiFetch('/points/transactions?limit=10'),
+        apiFetch('/users/leaderboard')
+      ]);
+
+      if (!childrenRes) return;
+
+      const children = await childrenRes.json();
+      const rewards = await rewardsRes.json();
+      const redemptions = await redemptionsRes.json();
+      const transactions = await txRes.json();
+      const leaderboard = lbRes ? await lbRes.json() : [];
+
+      cachedChildren = children;
+      cachedRewards = rewards;
+
+      document.getElementById('stat-children').textContent = children.length;
+      document.getElementById('stat-rewards').textContent = rewards.length;
+      document.getElementById('stat-redeemed').textContent = redemptions.length;
+
+      const now = Date.now();
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+      const weekPts = transactions.filter(t => t.points > 0 && new Date(t.created_at).getTime() > weekAgo).reduce((s, t) => s + t.points, 0);
+      document.getElementById('stat-points').textContent = weekPts;
+
+      // Leaderboard
+      const lbEl = document.getElementById('leaderboard');
+      const medals = ['🥇', '🥈', '🥉'];
+      const bgColors = ['bg-yellow-50 border-yellow-200', 'bg-gray-50 border-gray-200', 'bg-amber-50 border-amber-200'];
+      if (leaderboard.length === 0) {
+        lbEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-3">暂无孩子账号</div>';
+      } else {
+        lbEl.innerHTML = leaderboard.map((child, idx) => {
+          const medal = medals[idx] || `${idx + 1}`;
+          const bg = bgColors[idx] || 'bg-purple-50 border-purple-200';
+          return `
+            <div class="flex items-center gap-3 p-3 rounded-2xl border-2 ${bg}">
+              <div class="text-2xl w-8 text-center">${medal}</div>
+              <div class="text-2xl">${child.avatar_emoji}</div>
+              <div class="flex-1">
+                <div class="font-bold text-gray-800 text-sm">${child.name}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-black text-xl ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-500' : idx === 2 ? 'text-amber-600' : 'text-fun-purple'}">${child.points}</div>
+                <div class="text-xs text-gray-400">分</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Populate dropdowns
+      const quickSel = document.getElementById('quick-child');
+      const redeemSel = document.getElementById('redeem-child');
+      const quickVal = quickSel.value;
+      const redeemVal = redeemSel.value;
+      quickSel.innerHTML = '<option value="">选择孩子 👶</option>';
+      redeemSel.innerHTML = '<option value="">选择孩子 👶</option>';
+      children.forEach(c => {
+        quickSel.innerHTML += `<option value="${c.id}">${c.avatar_emoji} ${c.name} (${c.points} 积分)</option>`;
+        redeemSel.innerHTML += `<option value="${c.id}">${c.avatar_emoji} ${c.name} (${c.points} 积分)</option>`;
+      });
+      if (quickVal) quickSel.value = quickVal;
+      if (redeemVal) {
+        redeemSel.value = redeemVal;
+        loadRedeemRewards();
+      }
+
+      // Recent transactions
+      const txEl = document.getElementById('recent-transactions');
+      if (transactions.length === 0) {
+        txEl.innerHTML = '<div class="text-gray-400 text-center py-4">暂无记录</div>';
+      } else {
+        txEl.innerHTML = transactions.slice(0, 8).map(t => `
+          <div class="flex items-center justify-between py-2 px-3 rounded-xl ${t.points > 0 ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'}">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${t.avatar_emoji || '🧒'}</span>
+              <div>
+                <div class="font-semibold text-gray-700">${t.child_name}</div>
+                <div class="text-gray-400 text-xs">${t.description}</div>
+              </div>
+            </div>
+            <span class="${t.points > 0 ? 'text-reward-green' : 'text-red-500'} font-black text-lg">
+              ${t.points > 0 ? '+' : ''}${t.points}
+            </span>
+          </div>
+        `).join('');
+      }
+    }
+
+    async function quickAward() {
+      const child_id = document.getElementById('quick-child').value;
+      const points = parseInt(document.getElementById('quick-points').value);
+      const description = document.getElementById('quick-desc').value.trim();
+
+      if (!child_id || !points || !description) {
+        showToast('请填写所有字段', 'error');
+        return;
+      }
+
+      const res = await apiFetch('/points/award', {
+        method: 'POST',
+        body: { child_id: parseInt(child_id), points, description }
+      });
+      if (!res) return;
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '操作失败', 'error');
+        return;
+      }
+
+      showToast(`积分已${points > 0 ? '发放' : '扣除'}！新余额: ${data.new_balance}`);
+      document.getElementById('quick-points').value = '';
+      document.getElementById('quick-desc').value = '';
+      loadDashboard();
+    }
+
+    function loadRedeemRewards() {
+      const childId = document.getElementById('redeem-child').value;
+      const pointsEl = document.getElementById('redeem-child-points');
+      const listEl = document.getElementById('rewards-list');
+      const msgEl = document.getElementById('no-child-msg');
+
+      if (!childId) {
+        pointsEl.classList.add('hidden');
+        listEl.classList.add('hidden');
+        msgEl.classList.remove('hidden');
+        return;
+      }
+
+      const child = cachedChildren.find(c => c.id == childId);
+      if (!child) return;
+
+      pointsEl.textContent = `${child.avatar_emoji} ${child.name} 当前积分：${child.points} 分`;
+      pointsEl.classList.remove('hidden');
+      msgEl.classList.add('hidden');
+
+      if (cachedRewards.length === 0) {
+        listEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-3">暂无奖励</div>';
+        listEl.classList.remove('hidden');
+        return;
+      }
+
+      listEl.classList.remove('hidden');
+      listEl.innerHTML = cachedRewards.map(r => {
+        const canAfford = child.points >= r.points_cost;
+        return `
+          <div class="flex items-center justify-between p-3 rounded-xl border-2 ${canAfford ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${r.emoji}</span>
+              <div>
+                <div class="font-bold text-gray-800 text-sm">${r.name}</div>
+                <div class="text-xs ${canAfford ? 'text-reward-green font-semibold' : 'text-gray-400'}">${r.points_cost} 积分${canAfford ? '' : `（差 ${r.points_cost - child.points} 分）`}</div>
+              </div>
+            </div>
+            <button onclick="directRedeem(${child.id}, ${r.id}, '${r.name.replace(/'/g, "\\'")}', ${r.points_cost})"
+              ${canAfford ? '' : 'disabled'}
+              class="px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${canAfford ? 'bg-reward-green text-white hover:opacity-90 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}">
+              兑换
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function directRedeem(childId, rewardId, rewardName, cost) {
+      const confirmed = await showModal(`确认兑换`, `确认帮孩子兑换 "${rewardName}"（${cost} 积分）吗？`);
+      if (!confirmed) return;
+
+      const res = await apiFetch('/redemptions/direct', {
+        method: 'POST',
+        body: { child_id: childId, reward_id: rewardId }
+      });
+      if (!res) return;
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || '兑换失败', 'error');
+        return;
+      }
+
+      showToast(`兑换成功！${rewardName} 已兑换，剩余积分: ${data.new_balance}`);
+      loadDashboard();
+    }
+  </script>
+</body>
+</html>
